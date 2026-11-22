@@ -43,14 +43,16 @@ void mode_to_str(mode_t mode, char *buf)   // buf 至少 11 字节
             buf[1 + i] = '-';
     }
 
-    buf[10] = '\0';   // 哨兵，别忘了
+    buf[10] = '\0';   
 }
 void do_print(struct file_info*files,int count,int has_i,int has_l)
 {
     for(int i=0;i<count;i++)
     {   if(has_l)
         {
-            printf("%o %lu %-5u %-5u %-8ld ",files[i].st.st_mode,(unsigned long)files[i].st.st_nlink,(unsigned int)files[i].st.st_uid,(unsigned int)files[i].st.st_gid,(long)files[i].st.st_size);
+            char mode_buf[11];
+            mode_to_str(files[i].st.st_mode, mode_buf);
+            printf("%s %lu %-5u %-5u %-8ld ",mode_buf,(unsigned long)files[i].st.st_nlink,(unsigned int)files[i].st.st_uid,(unsigned int)files[i].st.st_gid,(long)files[i].st.st_size);
             struct tm*tm_info=localtime(&files[i].st.st_mtime);
             char time_buf[64];
             strftime(time_buf,sizeof(time_buf),"%b %e %H:%M",tm_info);//将原来的时间换算成年月日
