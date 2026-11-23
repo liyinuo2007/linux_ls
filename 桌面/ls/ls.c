@@ -23,6 +23,30 @@ int compare_name_reverse(const void*a,const void*b)
     struct file_info*filesB=(struct file_info*)b;
     return -strcmp(filesA->name,filesB->name);//比较两个字符串，如果A比B小，返回负数，A在前
 }
+int compare_mtime(const void*a,const void*b)
+{
+    struct file_info*filesA=(struct file_info*)a;
+    struct file_info*filesB=(struct file_info*)b;
+    if(filesA->st.st_mtime<filesB->st.st_mtime)
+    {
+        return 1;//A旧A往后
+    }
+    if(filesA->st.st_mtime>filesB->st.st_mtime)//A新A往前
+    {
+        return -1;
+    }
+    return -strcmp(filesA->name, filesB->name);   // 时间相同：名字逆序（GNU 实测行为）
+}
+int compare_mtime_reverse(const void*a,const void*b)
+{
+    struct file_info*filesA=(struct file_info*)a;
+    struct file_info*filesB=(struct file_info*)b;
+    if(filesA->st.st_mtime < filesB->st.st_mtime)
+        return -1;                              // a 旧 → a 往前
+    if(filesA->st.st_mtime > filesB->st.st_mtime)
+        return 1;                               // a 新 → a 往后
+    return strcmp(filesA->name, filesB->name);  // 并列：名字正序
+}
 void mode_to_str(mode_t mode, char *buf)   // buf 至少 11 字节
 {
      // 第 0 位：类型字符
@@ -65,7 +89,7 @@ void do_print(struct file_info*files,int count,int has_i,int has_l)
         printf("%s\n",files[i].name);
     }
 }
-void list_dir(const char*path,int depth,int has_a,int has_i,int has_l,int has_r,int has_R,int has_d)
+void list_dir(const char*path,int depth,int has_a,int has_i,int has_l,int has_r,int has_R,int has_t)
 {
     DIR*dp=opendir(path);
     if(dp==NULL)
@@ -120,14 +144,20 @@ void list_dir(const char*path,int depth,int has_a,int has_i,int has_l,int has_r,
         count++;
     }
     closedir(dp);
+    if(has_t)
+{
     if(has_r)
-    {
-        qsort(files,count,sizeof(struct file_info),compare_name_reverse);//逆序
-    }
+        qsort(files,count,sizeof(struct file_info),compare_mtime_reverse);
     else
-    {
-        qsort(files,count,sizeof(struct file_info),compare_name);//排序
-    }
+        qsort(files,count,sizeof(struct file_info),compare_mtime);
+}
+else
+{
+    if(has_r)
+        qsort(files,count,sizeof(struct file_info),compare_name_reverse);
+    else
+        qsort(files,count,sizeof(struct file_info),compare_name);
+}
     do_print(files,count,has_i,has_l);
     for(int i=0;i<count;i++)
     {
@@ -137,7 +167,7 @@ void list_dir(const char*path,int depth,int has_a,int has_i,int has_l,int has_r,
         {
             char full_path[1024];
             snprintf(full_path,sizeof(full_path),"%s/%s",path,files[i].name);//路径拼接的作用：把“目录里的名字”翻译成“文件系统里的地址”
-            list_dir(full_path,depth+1,has_a,has_i,has_l,has_r,has_R,has_d);
+            list_dir(full_path,depth+1,has_a,has_i,has_l,has_r,has_R,has_t);
         }
     }
         free(files[i].name);
@@ -157,7 +187,7 @@ int main(int argc,char*argv[])
     int has_R=0;
     int has_r=0;
     int has_S=0;
-    int has_d=0;
+    int has_t=0;
     for(int i=0;i<argc;i++)//
     {
         if(strcmp(argv[i],"-a")==0)//是否过滤隐藏文件的开关
@@ -172,10 +202,10 @@ int main(int argc,char*argv[])
         has_r=1;
         if(strcmp(argv[i],"-S")==0)
         has_S=1;
-        if(strcmp(argv[i],"-d")==0)
-        has_d=1;
+        if(strcmp(argv[i],"-t")==0)
+        has_t=1;
     }
     int depth=0;
-    list_dir(argv[1],depth,has_a,has_i,has_l,has_r,has_R,has_d);
+    list_dir(argv[1],depth,has_a,has_i,has_l,has_r,has_R,has_t);
     return 0;
 }
